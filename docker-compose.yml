@@ -12,7 +12,10 @@ services:
       - mongo_data:/data/db
     networks:
       - app_network
-    # MongoDB is NOT exposed to the host — only accessible inside the Docker network
+    # SECURE PORT MAPPING: Binds ONLY to localhost (127.0.0.1) on the VPS.
+    # The public internet CANNOT access this. It is only accessible via SSH Tunnel (e.g. in Compass).
+    ports:
+      - "127.0.0.1:27017:27017"
 
   # ── Backend ──────────────────────────────────────────────────────────────
   backend:
