@@ -118,10 +118,11 @@ async function generateInterviewReport({
 
 async function generatePdfFromHtml(htmlContent) {
   const browser = await puppeteer.launch({
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage", // prevents crashes in low-memory containers
+      "--disable-dev-shm-usage",
     ],
   });
   const page = await browser.newPage();
