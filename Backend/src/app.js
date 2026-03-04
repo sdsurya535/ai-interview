@@ -6,7 +6,12 @@ const app = express();
 
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",")
-  : ["http://localhost:5173", "http://localhost", "http://localhost:80"];
+  : [
+      "http://localhost:5173",
+      "http://localhost",
+      "http://localhost:80",
+      "http://187.77.188.192",
+    ];
 
 app.use(express.json());
 app.use(cookieParser());
