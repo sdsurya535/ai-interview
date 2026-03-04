@@ -51,6 +51,11 @@ services:
       - app_network
     ports:
       - "80:80"
+      - "443:443"
+    # Mount SSL certs from the VPS host (read-only for security)
+    # Certs are created by: certbot certonly --standalone -d jioclouds.in -d www.jioclouds.in
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
 
 # ── Volumes ──────────────────────────────────────────────────────────────
 volumes:
