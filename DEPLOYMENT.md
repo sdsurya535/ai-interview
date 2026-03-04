@@ -54,7 +54,11 @@ docker compose version
 
 ---
 
-## Step 3 — Open Firewall Ports on Hostinger
+## Step 3 — Configure Firewall
+
+You have **two options** — do either one (no need to do both):
+
+### Option A: Hostinger hpanel UI
 
 In **hpanel → VPS → Firewall**, add these inbound rules:
 
@@ -63,6 +67,34 @@ In **hpanel → VPS → Firewall**, add these inbound rules:
 | 22   | TCP      | SSH              |
 | 80   | TCP      | Frontend (nginx) |
 | 3000 | TCP      | Backend API      |
+| 443  | TCP      | HTTPS (optional) |
+
+### Option B: `ufw` on the VPS (recommended)
+
+> **⚠️ Warning:** Always allow port 22 (SSH) FIRST before enabling ufw — otherwise you will permanently lock yourself out of the VPS.
+
+```bash
+# Install ufw
+apt install ufw -y
+
+# Set defaults
+ufw default deny incoming
+ufw default allow outgoing
+
+# Allow SSH first — DO NOT skip this step
+ufw allow 22/tcp
+
+# Allow app ports
+ufw allow 80/tcp      # Frontend
+ufw allow 3000/tcp    # Backend API
+ufw allow 443/tcp     # HTTPS (for SSL later)
+
+# Enable the firewall
+ufw enable
+
+# Verify
+ufw status verbose
+```
 
 ---
 
