@@ -145,6 +145,21 @@ VITE_API_BASE_URL=http://123.45.67.89:3000
 
 Save with `Ctrl+O`, `Enter`, then `Ctrl+X`.
 
+### Verify the `.env` is Correct
+
+```bash
+# Check the file exists
+ls -la .env
+
+# Show only key names (safe — hides values)
+cat .env | cut -d '=' -f 1
+
+# Confirm all required keys are present
+grep -E "MONGO_ROOT_USER|MONGO_ROOT_PASSWORD|MONGO_DB_NAME|JWT_SECRET|GOOGLE_GENAI_API_KEY|VITE_API_BASE_URL" .env
+```
+
+All 6 keys should appear. If any is missing, open `nano .env` and add it.
+
 ---
 
 ## Step 7 — Build & Start
@@ -203,20 +218,133 @@ docker compose up --build -d
 
 ---
 
-## Optional — Custom Domain + SSL (HTTPS)
+## Custom Domain + SSL (HTTPS)
 
-If you have a domain pointed to your VPS IP:
+### Step A — Point Your Domain to the VPS
 
-1. On Hostinger DNS → point `A record` to your VPS IP
-2. Install Certbot on the VPS:
+1. Go to Hostinger **hpanel → Domains → DNS Zone**
+2. Add or update the **A record**:
+   - **Host:** `@` (for root domain) or `www`
+   - **Points to:** your VPS IP (e.g. `123.45.67.89`)
+   - **TTL:** 3600
+3. Wait 5–30 min for DNS to propagate. Verify with:
 
 ```bash
-apt install certbot -y
-certbot certonly --standalone -d yourdomain.com
+nslookup yourdomain.com
+# Should return your VPS IP
 ```
 
-3. Update `Frontend/nginx.conf` to add HTTPS, pointing certs to `/etc/letsencrypt/live/yourdomain.com/`
-4. Update root `.env`: `VITE_API_BASE_URL=https://yourdomain.com` (then rebuild frontend)
+---
+
+### Step B — Issue SSL Certificate with Certbot
+
+> **⚠️ Warning:** Stop the frontend container first (Certbot needs port 80 free to verify your domain).
+
+```bash
+# Stop frontend temporarily
+docker compose stop frontend
+
+# Install Certbot
+apt install certbot -y
+
+# Issue certificate (replace with your real domain)
+certbot certonly --standalone -d yourdomain.com -d www.yourdomain.com
+
+# Certificates are saved to:
+# /etc/letsencrypt/live/yourdomain.com/fullchain.pem
+# /etc/letsencrypt/live/yourdomain.com/privkey.pem
+```
+
+---
+
+### Step C — Update `Frontend/nginx.conf` for HTTPS
+
+Replace the contents of `Frontend/nginx.conf` with:
+
+```nginx
+server {
+    listen 80;
+    server_name yourdomain.com www.yourdomain.com;
+    # Redirect all HTTP to HTTPS
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name yourdomain.com www.yourdomain.com;
+
+    ssl_certificate     /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
+}
+```
+
+Also mount the certs into the frontend container in `docker-compose.yml`:
+
+```yaml
+frontend:
+  # ... existing config ...
+  volumes:
+    - /etc/letsencrypt:/etc/letsencrypt:ro
+  ports:
+    - "80:80"
+    - "443:443"
+```
+
+---
+
+### Step D — Update Root `.env` and Rebuild
+
+```bash
+nano .env
+```
+
+Change these two values:
+
+```env
+# Frontend — now use your domain with HTTPS
+VITE_API_BASE_URL=https://yourdomain.com/api
+
+# Add CORS for your domain
+CORS_ORIGIN=https://yourdomain.com,https://www.yourdomain.com
+```
+
+Rebuild everything:
+
+```bash
+docker compose up --build -d
+```
+
+---
+
+### Step E — Auto-Renew SSL (Certbot)
+
+SSL certificates expire every 90 days. Set up auto-renewal:
+
+```bash
+# Test renewal works
+certbot renew --dry-run
+
+# Add cron to renew every week (runs at 3 AM on Monday)
+(crontab -l 2>/dev/null; echo "0 3 * * 1 certbot renew --quiet && docker compose -f /root/interview-ai-yt/docker-compose.yml restart frontend") | crontab -
+
+# Verify cron
+crontab -l
+```
 
 ---
 
