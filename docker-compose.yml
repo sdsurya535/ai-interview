@@ -12,6 +12,8 @@ services:
       - mongo_data:/data/db
     networks:
       - app_network
+    ports:
+      - "27017:27017"
     # MongoDB is NOT exposed to the host — only accessible inside the Docker network
 
   # ── Backend ──────────────────────────────────────────────────────────────
