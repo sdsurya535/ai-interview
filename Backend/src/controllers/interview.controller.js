@@ -1,8 +1,4 @@
-const _pdfParseModule = require("pdf-parse");
-const pdfParse =
-  typeof _pdfParseModule === "function"
-    ? _pdfParseModule
-    : _pdfParseModule.parse || _pdfParseModule.default;
+const pdfParse = require("pdf-parse");
 const {
   generateInterviewReport,
   generateResumePdf,
