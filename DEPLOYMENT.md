@@ -188,6 +188,109 @@ certbot certonly --standalone -d yourdomain.com
 
 ---
 
+## Database Backup & Restore
+
+> **⚠️ Critical Warning:** Running `docker compose down -v` **permanently deletes all your data**. The `-v` flag removes the Docker volume where MongoDB stores everything. Never run this in production unless you intend to wipe the database. Use `docker compose down` (without `-v`) to safely stop containers.
+
+---
+
+### Taking a Manual Backup
+
+Run this on the VPS to dump the entire database into a compressed archive:
+
+```bash
+# Creates a backup file: backup_2026-03-04.gz
+docker exec interview_mongo mongodump \
+  --username admin \
+  --password YourStrongPasswordHere \
+  --authenticationDatabase admin \
+  --db interview-ai \
+  --archive \
+  --gzip > backup_$(date +%Y-%m-%d).gz
+```
+
+The backup file appears in your **current directory** on the VPS. Store it safely.
+
+---
+
+### Restoring from a Backup
+
+```bash
+# Restore from a backup file
+docker exec -i interview_mongo mongorestore \
+  --username admin \
+  --password YourStrongPasswordHere \
+  --authenticationDatabase admin \
+  --db interview-ai \
+  --archive \
+  --gzip < backup_2026-03-04.gz
+```
+
+> **⚠️ Warning:** Restoring overwrites existing data in the `interview-ai` database. Make sure you are restoring the correct backup file.
+
+---
+
+### Automated Daily Backups (Cron Job)
+
+Set up a cron job on the VPS to auto-backup every day at 2 AM:
+
+```bash
+# Create a backup script
+cat > /root/backup-mongo.sh << 'EOF'
+#!/bin/bash
+BACKUP_DIR="/root/mongo-backups"
+mkdir -p $BACKUP_DIR
+
+# Keep only last 7 days of backups
+find $BACKUP_DIR -name "*.gz" -mtime +7 -delete
+
+# Create today's backup
+docker exec interview_mongo mongodump \
+  --username admin \
+  --password YourStrongPasswordHere \
+  --authenticationDatabase admin \
+  --db interview-ai \
+  --archive \
+  --gzip > $BACKUP_DIR/backup_$(date +%Y-%m-%d).gz
+
+echo "Backup completed: $(date)"
+EOF
+
+chmod +x /root/backup-mongo.sh
+
+# Add to crontab — runs every day at 2:00 AM
+(crontab -l 2>/dev/null; echo "0 2 * * * /root/backup-mongo.sh >> /root/mongo-backups/backup.log 2>&1") | crontab -
+```
+
+**Verify the cron is set:**
+
+```bash
+crontab -l
+```
+
+---
+
+### Download Backup to Your Local Machine
+
+Run this on your **local machine** to copy the backup from the VPS:
+
+```bash
+scp root@123.45.67.89:/root/mongo-backups/backup_2026-03-04.gz ./
+```
+
+---
+
+### ⚠️ Production Backup Warnings
+
+| Risk                     | What happens                         | Prevention                                                     |
+| ------------------------ | ------------------------------------ | -------------------------------------------------------------- |
+| `docker compose down -v` | **Deletes ALL data permanently**     | Always use `docker compose down` (no `-v`) in production       |
+| VPS disk full            | Backups fail silently                | Monitor disk: `df -h`, keep only last 7 days                   |
+| No off-VPS copy          | VPS loss = data loss                 | Download backups to local machine or upload to S3/Google Drive |
+| Restore without testing  | Corrupted backup discovered too late | Test restores on a staging environment periodically            |
+
+---
+
 > **⚠️ Important:** `VITE_API_BASE_URL` is baked into the bundle **at build time**. If you change domain/IP later, rebuild with: `docker compose up --build -d frontend`
 
 > **🔒 Warning:** Never commit the root `.env` to Git — it contains your database password and API keys.
