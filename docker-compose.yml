@@ -1,0 +1,60 @@
+services:
+  # ── MongoDB ──────────────────────────────────────────────────────────────
+  mongo:
+    image: mongo:7
+    container_name: interview_mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME}
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - app_network
+    # MongoDB is NOT exposed to the host — only accessible inside the Docker network
+
+  # ── Backend ──────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: interview_backend
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    environment:
+      MONGO_URI: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongo:27017/${MONGO_DB_NAME}?authSource=admin
+      JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_GENAI_API_KEY: ${GOOGLE_GENAI_API_KEY}
+    networks:
+      - app_network
+    ports:
+      - "3000:3000"
+
+  # ── Frontend ─────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+      args:
+        # Baked into the Vite bundle at build time
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+    container_name: interview_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - app_network
+    ports:
+      - "80:80"
+
+# ── Volumes ──────────────────────────────────────────────────────────────
+volumes:
+  mongo_data:
+    driver: local
+
+# ── Networks ─────────────────────────────────────────────────────────────
+networks:
+  app_network:
+    driver: bridge

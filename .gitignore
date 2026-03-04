@@ -1,0 +1,7 @@
+# Root .gitignore
+.env
+.git
+
+# OS
+.DS_Store
+Thumbs.db

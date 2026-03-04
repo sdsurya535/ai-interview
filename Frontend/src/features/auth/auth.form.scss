@@ -41,4 +41,14 @@ main{
         color: #e1034d;
         text-decoration: none;
     }
+
+    .error-message {
+        color: #e74c3c;
+        background: rgba(231, 76, 60, 0.1);
+        border: 1px solid rgba(231, 76, 60, 0.3);
+        border-radius: 0.5rem;
+        padding: 0.6rem 1rem;
+        font-size: 0.875rem;
+        margin: 0;
+    }
 }
