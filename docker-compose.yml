@@ -30,10 +30,13 @@ services:
       MONGO_URI: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongo:27017/${MONGO_DB_NAME}?authSource=admin
       JWT_SECRET: ${JWT_SECRET}
       GOOGLE_GENAI_API_KEY: ${GOOGLE_GENAI_API_KEY}
+      CORS_ORIGIN: ${CORS_ORIGIN}
     networks:
       - app_network
     ports:
-      - "3000:3000"
+      # Localhost-only: nginx proxies /api/ to here internally
+      # Not accessible from public internet
+      - "127.0.0.1:3000:3000"
 
   # ── Frontend ─────────────────────────────────────────────────────────────
   frontend:
